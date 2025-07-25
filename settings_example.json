@@ -1,0 +1,15 @@
+{
+  "include_mouse_moves": true,
+  "initial_delay": 3.0,
+  "default_speed": 1.0,
+  "hotkey_record": "F9",
+  "hotkey_play": "F10",
+  "hotkey_stop": "ESC",
+  "max_events": 50000,
+  "auto_save": true,
+  "sound_notification": true,
+  "ui_theme": "default",
+  "log_level": "INFO",
+  "backup_recordings": true,
+  "compression_enabled": false
+}

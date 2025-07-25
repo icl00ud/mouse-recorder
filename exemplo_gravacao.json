@@ -1,0 +1,96 @@
+{
+  "name": "Exemplo_Cliques_Basicos",
+  "duration": 5.23,
+  "total_events": 12,
+  "created_at": "2025-01-25T10:30:00",
+  "events": [
+    {
+      "type": "move",
+      "x": 500,
+      "y": 300,
+      "timestamp": 0.0
+    },
+    {
+      "type": "click",
+      "x": 500,
+      "y": 300,
+      "button": "left",
+      "action": "press",
+      "timestamp": 0.5
+    },
+    {
+      "type": "click",
+      "x": 500,
+      "y": 300,
+      "button": "left",
+      "action": "release",
+      "timestamp": 0.6
+    },
+    {
+      "type": "move",
+      "x": 600,
+      "y": 350,
+      "timestamp": 1.2
+    },
+    {
+      "type": "click",
+      "x": 600,
+      "y": 350,
+      "button": "left",
+      "action": "press",
+      "timestamp": 2.0
+    },
+    {
+      "type": "click",
+      "x": 600,
+      "y": 350,
+      "button": "left",
+      "action": "release",
+      "timestamp": 2.1
+    },
+    {
+      "type": "move",
+      "x": 400,
+      "y": 400,
+      "timestamp": 3.0
+    },
+    {
+      "type": "click",
+      "x": 400,
+      "y": 400,
+      "button": "right",
+      "action": "press",
+      "timestamp": 3.8
+    },
+    {
+      "type": "click",
+      "x": 400,
+      "y": 400,
+      "button": "right",
+      "action": "release",
+      "timestamp": 3.9
+    },
+    {
+      "type": "scroll",
+      "x": 400,
+      "y": 400,
+      "dx": 0,
+      "dy": -3,
+      "timestamp": 4.5
+    },
+    {
+      "type": "move",
+      "x": 450,
+      "y": 250,
+      "timestamp": 5.0
+    },
+    {
+      "type": "click",
+      "x": 450,
+      "y": 250,
+      "button": "left",
+      "action": "press",
+      "timestamp": 5.23
+    }
+  ]
+}
