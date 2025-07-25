@@ -1,6 +1,6 @@
-# 🖱️ Mouse Recorder - Automação de Jogos
+# 🖱️⌨️ Mouse & Keyboard Recorder - Automação Completa
 
-Uma aplicação completa em Python para gravar e reproduzir movimentos do mouse, desenvolvida especialmente para automação de tarefas em jogos.
+Uma aplicação completa em Python para gravar e reproduzir movimentos do mouse **e ações do teclado**, desenvolvida especialmente para automação avançada de tarefas em jogos e aplicações.
 
 ![Python Version](https://img.shields.io/badge/python-3.7+-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
@@ -20,17 +20,25 @@ Não precisa instalar Python! Baixe e execute diretamente:
 ## ✨ Funcionalidades Principais
 
 ### 🎮 Interface Gráfica Intuitiva
-- **Botão Gravar**: Inicia captura de movimentos e cliques do mouse
+- **Botão Gravar**: Inicia captura de movimentos e cliques do mouse + teclas
 - **Botão Reproduzir**: Executa a sequência gravada com precisão
 - **Botão Parar**: Interrompe gravação ou reprodução
+- **Seletores de Captura**: Escolha gravar só mouse, só teclado, ou ambos
 - **Controles avançados**: Repetições, velocidade e ações finais
 
 ### 🎯 Sistema de Gravação Avançado
+**Mouse:**
 - ✅ Captura movimentos do mouse (x, y, timestamp)
 - ✅ Registra cliques (esquerdo, direito, meio)
 - ✅ Detecta scroll (direção e intensidade)
-- ✅ Timestamps precisos para reprodução fiel
 - ✅ Suporte a double cliques
+
+**Teclado:**
+- ✅ Captura teclas pressionadas/liberadas
+- ✅ Suporte a teclas especiais (F1-F20, Enter, Space, etc.)
+- ✅ Modificadores (Ctrl, Alt, Shift, Win)
+- ✅ Combinações de teclas (Ctrl+C, Alt+Tab, etc.)
+- ✅ Timestamps precisos para reprodução fiel
 
 ### ⚡ Reprodução Inteligente
 - 🔄 Sistema de repetições configurável (1-9999x)
@@ -52,6 +60,12 @@ Não precisa instalar Python! Baixe e execute diretamente:
 - **F9**: Iniciar/parar gravação
 - **F10**: Reproduzir gravação
 - **ESC**: Parar todas as operações
+
+### 📊 Estatísticas Detalhadas
+- 📈 Contadores separados para mouse e teclado
+- 🔍 Análise de tipos de eventos
+- ⏱️ Duração e timing preciso
+- 💾 Informações de arquivo
 
 ## 🚀 Instalação Rápida
 

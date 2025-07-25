@@ -1,7 +1,7 @@
 """
-Mouse Recorder para Automação de Jogos
-Aplicação completa para gravar e reproduzir movimentos do mouse
-Desenvolvido para automação de tarefas em jogos
+Mouse & Keyboard Recorder para Automação de Jogos
+Aplicação completa para gravar e reproduzir movimentos do mouse e ações do teclado
+Desenvolvido para automação completa de tarefas em jogos e aplicações
 """
 
 import tkinter as tk
@@ -22,8 +22,8 @@ import queue
 
 class RecordingSession:
     """
-    Gerencia uma sessão de gravação de mouse
-    Captura movimentos, cliques e scroll com timestamps precisos
+    Gerencia uma sessão de gravação de mouse e teclado
+    Captura movimentos, cliques, scroll e teclas com timestamps precisos
     """
     
     def __init__(self):
@@ -31,31 +31,50 @@ class RecordingSession:
         self.start_time: float = 0
         self.is_recording: bool = False
         self.mouse_listener: Optional[MouseListener] = None
+        self.keyboard_listener: Optional[KeyboardListener] = None
+        self.record_mouse: bool = True
+        self.record_keyboard: bool = True
         
-    def start_recording(self) -> None:
-        """Inicia a gravação dos eventos do mouse"""
+    def start_recording(self, record_mouse: bool = True, record_keyboard: bool = True) -> None:
+        """Inicia a gravação dos eventos do mouse e/ou teclado"""
         self.events.clear()
         self.start_time = time.time()
         self.is_recording = True
+        self.record_mouse = record_mouse
+        self.record_keyboard = record_keyboard
         
-        # Configura listener do mouse para capturar todos os eventos
-        self.mouse_listener = MouseListener(
-            on_move=self._on_mouse_move,
-            on_click=self._on_mouse_click,
-            on_scroll=self._on_mouse_scroll
-        )
-        self.mouse_listener.start()
+        # Configura listener do mouse se habilitado
+        if self.record_mouse:
+            self.mouse_listener = MouseListener(
+                on_move=self._on_mouse_move,
+                on_click=self._on_mouse_click,
+                on_scroll=self._on_mouse_scroll
+            )
+            self.mouse_listener.start()
+        
+        # Configura listener do teclado se habilitado
+        if self.record_keyboard:
+            self.keyboard_listener = KeyboardListener(
+                on_press=self._on_key_press,
+                on_release=self._on_key_release
+            )
+            self.keyboard_listener.start()
         
     def stop_recording(self) -> None:
-        """Para a gravação e finaliza o listener"""
+        """Para a gravação e finaliza os listeners"""
         self.is_recording = False
+        
         if self.mouse_listener:
             self.mouse_listener.stop()
             self.mouse_listener = None
             
+        if self.keyboard_listener:
+            self.keyboard_listener.stop()
+            self.keyboard_listener = None
+            
     def _on_mouse_move(self, x: int, y: int) -> None:
         """Callback para movimentos do mouse"""
-        if self.is_recording:
+        if self.is_recording and self.record_mouse:
             timestamp = time.time() - self.start_time
             self.events.append({
                 "type": "move",
@@ -66,7 +85,7 @@ class RecordingSession:
             
     def _on_mouse_click(self, x: int, y: int, button: Button, pressed: bool) -> None:
         """Callback para cliques do mouse"""
-        if self.is_recording:
+        if self.is_recording and self.record_mouse:
             timestamp = time.time() - self.start_time
             button_name = "left" if button == Button.left else \
                          "right" if button == Button.right else "middle"
@@ -83,7 +102,7 @@ class RecordingSession:
             
     def _on_mouse_scroll(self, x: int, y: int, dx: int, dy: int) -> None:
         """Callback para scroll do mouse"""
-        if self.is_recording:
+        if self.is_recording and self.record_mouse:
             timestamp = time.time() - self.start_time
             self.events.append({
                 "type": "scroll",
@@ -93,6 +112,45 @@ class RecordingSession:
                 "dy": dy,
                 "timestamp": timestamp
             })
+            
+    def _on_key_press(self, key) -> None:
+        """Callback para teclas pressionadas"""
+        if self.is_recording and self.record_keyboard:
+            timestamp = time.time() - self.start_time
+            key_name = self._get_key_name(key)
+            
+            self.events.append({
+                "type": "key_press",
+                "key": key_name,
+                "timestamp": timestamp
+            })
+            
+    def _on_key_release(self, key) -> None:
+        """Callback para teclas liberadas"""
+        if self.is_recording and self.record_keyboard:
+            timestamp = time.time() - self.start_time
+            key_name = self._get_key_name(key)
+            
+            self.events.append({
+                "type": "key_release",
+                "key": key_name,
+                "timestamp": timestamp
+            })
+            
+    def _get_key_name(self, key) -> str:
+        """Converte objeto de tecla para string"""
+        try:
+            # Teclas alfanuméricas e símbolos
+            if hasattr(key, 'char') and key.char is not None:
+                return key.char
+            # Teclas especiais
+            elif hasattr(key, 'name'):
+                return key.name
+            # Fallback
+            else:
+                return str(key)
+        except AttributeError:
+            return str(key)
             
     def get_duration(self) -> float:
         """Retorna a duração total da gravação"""
@@ -114,7 +172,7 @@ class RecordingSession:
 class PlaybackSession:
     """
     Gerencia a reprodução de gravações
-    Executa eventos com timing preciso e suporte a repetições
+    Executa eventos de mouse e teclado com timing preciso e suporte a repetições
     """
     
     def __init__(self, events: List[Dict[str, Any]], speed_multiplier: float = 1.0):
@@ -122,6 +180,7 @@ class PlaybackSession:
         self.speed_multiplier = speed_multiplier
         self.is_playing = False
         self.mouse_controller = mouse.Controller()
+        self.keyboard_controller = keyboard.Controller()
         self.current_repetition = 0
         self.total_repetitions = 1
         self.playback_thread: Optional[threading.Thread] = None
@@ -214,8 +273,70 @@ class PlaybackSession:
                 self.mouse_controller.position = (event["x"], event["y"])
                 self.mouse_controller.scroll(event["dx"], event["dy"])
                 
+            elif event["type"] == "key_press":
+                key = self._string_to_key(event["key"])
+                if key:
+                    self.keyboard_controller.press(key)
+                    
+            elif event["type"] == "key_release":
+                key = self._string_to_key(event["key"])
+                if key:
+                    self.keyboard_controller.release(key)
+                
         except Exception as e:
             print(f"Erro ao executar evento: {e}")
+            
+    def _string_to_key(self, key_str: str):
+        """Converte string de volta para objeto de tecla"""
+        try:
+            # Teclas de um caractere
+            if len(key_str) == 1:
+                return key_str
+                
+            # Teclas especiais mapeadas
+            special_keys = {
+                'space': keyboard.Key.space,
+                'enter': keyboard.Key.enter,
+                'tab': keyboard.Key.tab,
+                'shift': keyboard.Key.shift,
+                'shift_l': keyboard.Key.shift_l,
+                'shift_r': keyboard.Key.shift_r,
+                'ctrl': keyboard.Key.ctrl,
+                'ctrl_l': keyboard.Key.ctrl_l,
+                'ctrl_r': keyboard.Key.ctrl_r,
+                'alt': keyboard.Key.alt,
+                'alt_l': keyboard.Key.alt_l,
+                'alt_r': keyboard.Key.alt_r,
+                'cmd': keyboard.Key.cmd,
+                'esc': keyboard.Key.esc,
+                'backspace': keyboard.Key.backspace,
+                'delete': keyboard.Key.delete,
+                'home': keyboard.Key.home,
+                'end': keyboard.Key.end,
+                'page_up': keyboard.Key.page_up,
+                'page_down': keyboard.Key.page_down,
+                'up': keyboard.Key.up,
+                'down': keyboard.Key.down,
+                'left': keyboard.Key.left,
+                'right': keyboard.Key.right,
+                'caps_lock': keyboard.Key.caps_lock,
+                'num_lock': keyboard.Key.num_lock,
+                'scroll_lock': keyboard.Key.scroll_lock,
+                'print_screen': keyboard.Key.print_screen,
+                'pause': keyboard.Key.pause,
+                'insert': keyboard.Key.insert,
+                'menu': keyboard.Key.menu,
+            }
+            
+            # Teclas F1-F20
+            for i in range(1, 21):
+                special_keys[f'f{i}'] = getattr(keyboard.Key, f'f{i}')
+            
+            return special_keys.get(key_str.lower(), key_str)
+            
+        except Exception as e:
+            print(f"Erro ao converter tecla {key_str}: {e}")
+            return None
 
 
 class SettingsManager:
@@ -228,6 +349,10 @@ class SettingsManager:
         self.config_file = config_file
         self.default_settings = {
             "include_mouse_moves": True,
+            "include_mouse_clicks": True,
+            "include_mouse_scroll": True,
+            "include_keyboard": True,
+            "include_key_combinations": True,
             "initial_delay": 3.0,
             "default_speed": 1.0,
             "hotkey_record": "F9",
@@ -279,8 +404,8 @@ class MouseRecorder:
     
     def __init__(self):
         self.root = tk.Tk()
-        self.root.title("Mouse Recorder - Automação de Jogos")
-        self.root.geometry("600x700")
+        self.root.title("Mouse & Keyboard Recorder - Automação Completa")
+        self.root.geometry("650x750")
         self.root.resizable(True, True)
         
         # Configuração de estilo
@@ -295,6 +420,10 @@ class MouseRecorder:
         # Estado da aplicação
         self.is_recording = False
         self.is_playing = False
+        
+        # Configurações de gravação
+        self.record_mouse_var = tk.BooleanVar(value=True)
+        self.record_keyboard_var = tk.BooleanVar(value=True)
         
         # Queue para comunicação thread-safe
         self.update_queue = queue.Queue()
@@ -368,6 +497,18 @@ class MouseRecorder:
         
         self.stop_btn = ttk.Button(buttons_frame, text="⏹️ Parar", command=self.stop_all, style='Stop.TButton')
         self.stop_btn.grid(row=0, column=2, padx=5)
+        
+        # Opções de gravação
+        record_options_frame = ttk.Frame(controls_frame)
+        record_options_frame.grid(row=1, column=0, columnspan=2, pady=(10, 0))
+        
+        ttk.Label(record_options_frame, text="Gravar:", font=('Arial', 10, 'bold')).grid(row=0, column=0, sticky=tk.W, padx=(0, 10))
+        
+        mouse_check = ttk.Checkbutton(record_options_frame, text="🖱️ Mouse", variable=self.record_mouse_var)
+        mouse_check.grid(row=0, column=1, sticky=tk.W, padx=(0, 10))
+        
+        keyboard_check = ttk.Checkbutton(record_options_frame, text="⌨️ Teclado", variable=self.record_keyboard_var)
+        keyboard_check.grid(row=0, column=2, sticky=tk.W)
         
         # === SEÇÃO DE CONFIGURAÇÕES DE REPRODUÇÃO ===
         playback_frame = ttk.LabelFrame(main_frame, text="Configurações de Reprodução", padding="10")
@@ -454,6 +595,7 @@ class MouseRecorder:
         # Inicializa interface
         self.update_ui_state()
         self.log_message("Aplicação iniciada. Use F9 para gravar, F10 para reproduzir, ESC para parar.")
+        self.log_message("💡 Dica: Selecione 'Mouse' e/ou 'Teclado' para escolher o que gravar!")
         
     def setup_hotkeys(self) -> None:
         """Configura hotkeys globais"""
@@ -515,12 +657,27 @@ class MouseRecorder:
             messagebox.showwarning("Aviso", "Pare a reprodução antes de gravar.")
             return
             
+        # Verifica se pelo menos uma opção está selecionada
+        record_mouse = self.record_mouse_var.get()
+        record_keyboard = self.record_keyboard_var.get()
+        
+        if not record_mouse and not record_keyboard:
+            messagebox.showwarning("Aviso", "Selecione pelo menos uma opção: Mouse ou Teclado.")
+            return
+            
         try:
             self.recording_session = RecordingSession()
-            self.recording_session.start_recording()
+            self.recording_session.start_recording(record_mouse, record_keyboard)
             self.is_recording = True
             
-            self.log_message("🔴 Gravação iniciada")
+            # Mensagem personalizada baseada no que está sendo gravado
+            recording_types = []
+            if record_mouse:
+                recording_types.append("mouse")
+            if record_keyboard:
+                recording_types.append("teclado")
+            
+            self.log_message(f"🔴 Gravação iniciada - Capturando: {' + '.join(recording_types)}")
             self.update_ui_state()
             
             # Inicia timer para atualizar duração
@@ -766,13 +923,33 @@ class MouseRecorder:
         events = self.current_recording_data.get("events", [])
         if events:
             event_types = {}
+            mouse_events = 0
+            keyboard_events = 0
+            
             for event in events:
                 event_type = event.get("type", "unknown")
                 event_types[event_type] = event_types.get(event_type, 0) + 1
                 
+                # Categorizar eventos
+                if event_type in ["move", "click", "scroll"]:
+                    mouse_events += 1
+                elif event_type in ["key_press", "key_release"]:
+                    keyboard_events += 1
+                
+            info.append(f"\nEstatísticas:")
+            info.append(f"  • Eventos de mouse: {mouse_events}")
+            info.append(f"  • Eventos de teclado: {keyboard_events}")
+            
             info.append("\nTipos de eventos:")
             for event_type, count in event_types.items():
-                info.append(f"  • {event_type}: {count}")
+                emoji = {
+                    "move": "🖱️",
+                    "click": "👆", 
+                    "scroll": "🎡",
+                    "key_press": "⌨️",
+                    "key_release": "🔼"
+                }.get(event_type, "❓")
+                info.append(f"  {emoji} {event_type}: {count}")
                 
         self.info_text.delete(1.0, tk.END)
         self.info_text.insert(1.0, "\n".join(info))
