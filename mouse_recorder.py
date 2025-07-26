@@ -713,6 +713,7 @@ class MouseRecorder:
             
     def start_playback(self) -> None:
         """Inicia reprodução da gravação"""
+        # Verificações de estado
         if not self.current_recording_data:
             messagebox.showwarning("Aviso", "Nenhuma gravação carregada para reproduzir.")
             return
@@ -731,10 +732,15 @@ class MouseRecorder:
                 messagebox.showwarning("Aviso", "Gravação está vazia.")
                 return
                 
+            # Reset de estados antes de iniciar
+            self.progress_var.set(0)
+            self.timer_var.set("00:00")
+                
             # Delay inicial configurável
             initial_delay = self.settings.get("initial_delay", 3.0)
             if initial_delay > 0:
                 self.log_message(f"⏱️ Aguardando {initial_delay} segundos antes de iniciar...")
+                self.status_var.set(f"Aguardando {initial_delay}s...")
                 self.root.after(int(initial_delay * 1000), self._start_playback_delayed)
             else:
                 self._start_playback_delayed()
@@ -742,9 +748,17 @@ class MouseRecorder:
         except Exception as e:
             self.log_message(f"Erro ao iniciar reprodução: {e}")
             messagebox.showerror("Erro", f"Erro ao iniciar reprodução:\n{e}")
+            # Reset em caso de erro
+            self.is_playing = False
+            self.update_ui_state()
             
     def _start_playback_delayed(self) -> None:
         """Inicia reprodução após delay"""
+        # Verifica se ainda é válido iniciar (usuário pode ter cancelado)
+        if self.is_recording or self.is_playing:
+            self.log_message("⚠️ Reprodução cancelada - estado mudou durante delay")
+            return
+            
         try:
             events = self.current_recording_data["events"]
             speed = self.speed_var.get()
@@ -766,24 +780,54 @@ class MouseRecorder:
         except Exception as e:
             self.log_message(f"Erro durante reprodução: {e}")
             self.is_playing = False
+            self.progress_var.set(0)
+            self.timer_var.set("00:00")
             self.update_ui_state()
             
     def stop_all(self) -> None:
         """Para todas as operações (gravação e reprodução)"""
+        stopped_something = False
+        
         if self.is_recording:
             self.stop_recording()
+            stopped_something = True
             
         if self.is_playing and self.playback_session:
             self.playback_session.stop()
             self.is_playing = False
+            stopped_something = True
             self.log_message("⏹️ Reprodução interrompida")
+            
+        if stopped_something:
+            # Reset de estados
+            self.progress_var.set(0)
+            self.timer_var.set("00:00")
+            self.status_var.set("Pronto")
             self.update_ui_state()
+        else:
+            self.log_message("ℹ️ Nenhuma operação em andamento para parar")
             
     def update_progress(self, current_rep: int, total_rep: int, progress: float) -> None:
-        """Atualiza barra de progresso"""
+        """Atualiza barra de progresso e timer"""
         overall_progress = ((current_rep - 1) + progress) / total_rep * 100
         self.progress_var.set(overall_progress)
         self.status_var.set(f"Reproduzindo - {current_rep}/{total_rep}")
+        
+        # Calcula tempo estimado restante
+        if hasattr(self, 'current_recording_data') and self.current_recording_data:
+            recording_duration = self.current_recording_data.get("duration", 0)
+            speed = self.speed_var.get()
+            adjusted_duration = recording_duration / speed
+            
+            # Tempo restante para repetição atual
+            current_remaining = adjusted_duration * (1 - progress)
+            # Tempo das repetições restantes
+            remaining_reps = total_rep - current_rep
+            remaining_time = current_remaining + (remaining_reps * adjusted_duration)
+            
+            minutes = int(remaining_time // 60)
+            seconds = int(remaining_time % 60)
+            self.timer_var.set(f"{minutes:02d}:{seconds:02d}")
         
     def on_playback_complete(self) -> None:
         """Callback chamado quando reprodução termina"""
@@ -793,10 +837,15 @@ class MouseRecorder:
         final_action = self.final_action_var.get()
         
         if final_action == "Repetir infinitamente":
-            self.log_message("🔄 Reiniciando reprodução infinita...")
-            self.start_playback()
-            return
-            
+            # Verifica se ainda deve continuar (usuário pode ter parado)
+            if hasattr(self, 'playback_session') and self.playback_session and not self.playback_session.stop_event.is_set():
+                self.log_message("🔄 Reiniciando reprodução infinita...")
+                # Pequeno delay antes de reiniciar
+                self.root.after(500, self._restart_infinite_playback)
+                return
+            else:
+                self.log_message("⏹️ Reprodução infinita interrompida pelo usuário")
+                
         elif final_action == "Tocar som":
             if self.settings.get("sound_notification", True):
                 try:
@@ -814,7 +863,15 @@ class MouseRecorder:
                 
         self.log_message("✅ Reprodução concluída")
         self.progress_var.set(0)
+        self.timer_var.set("00:00")
         self.update_ui_state()
+        
+    def _restart_infinite_playback(self) -> None:
+        """Reinicia reprodução infinita com verificação de estado"""
+        if not self.is_recording and not self.is_playing:
+            self.start_playback()
+        else:
+            self.log_message("⚠️ Não é possível reiniciar - operação em andamento")
         
     def save_recording(self) -> None:
         """Salva gravação em arquivo"""
