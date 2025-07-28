@@ -1030,14 +1030,17 @@ class MouseRecorder:
         if self.is_recording:
             self.record_btn.configure(text="⏹️ Parar Gravação", style='Stop.TButton')
             self.play_btn.configure(state=tk.DISABLED)
+            self.stop_btn.configure(state=tk.NORMAL)
             self.status_var.set("Gravando...")
         elif self.is_playing:
             self.record_btn.configure(state=tk.DISABLED)
             self.play_btn.configure(state=tk.DISABLED)
+            self.stop_btn.configure(state=tk.NORMAL)
             self.status_var.set("Reproduzindo...")
         else:
             self.record_btn.configure(text="🔴 Gravar", style='Record.TButton', state=tk.NORMAL)
             self.play_btn.configure(state=tk.NORMAL if self.current_recording_data else tk.DISABLED)
+            self.stop_btn.configure(state=tk.DISABLED)
             self.status_var.set("Pronto")
             
         # Botões de arquivo
