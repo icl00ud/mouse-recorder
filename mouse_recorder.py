@@ -115,6 +115,13 @@ class RecordingSession:
             
     def _on_key_press(self, key) -> None:
         """Callback para teclas pressionadas"""
+        # Não grava hotkeys globais para não interferir no controle
+        try:
+            if key in [keyboard.Key.f9, keyboard.Key.f10, keyboard.Key.esc]:
+                return  # Ignora hotkeys globais
+        except AttributeError:
+            pass
+            
         if self.is_recording and self.record_keyboard:
             timestamp = time.time() - self.start_time
             key_name = self._get_key_name(key)
@@ -127,6 +134,13 @@ class RecordingSession:
             
     def _on_key_release(self, key) -> None:
         """Callback para teclas liberadas"""
+        # Não grava hotkeys globais para não interferir no controle
+        try:
+            if key in [keyboard.Key.f9, keyboard.Key.f10, keyboard.Key.esc]:
+                return  # Ignora hotkeys globais
+        except AttributeError:
+            pass
+            
         if self.is_recording and self.record_keyboard:
             timestamp = time.time() - self.start_time
             key_name = self._get_key_name(key)
@@ -600,20 +614,36 @@ class MouseRecorder:
     def setup_hotkeys(self) -> None:
         """Configura hotkeys globais"""
         try:
-            self.keyboard_listener = KeyboardListener(on_press=self.on_key_press)
-            self.keyboard_listener.start()
+            # Para listener anterior se existir
+            if hasattr(self, 'hotkey_listener'):
+                try:
+                    self.hotkey_listener.stop()
+                except:
+                    pass
+            
+            # Cria novo listener para hotkeys globais
+            self.hotkey_listener = KeyboardListener(
+                on_press=self.on_key_press,
+                suppress=False  # Não suprime outras teclas
+            )
+            self.hotkey_listener.start()
+            self.log_message("✅ Hotkeys configuradas: F9 (gravar), F10 (reproduzir), ESC (parar)")
         except Exception as e:
             self.log_message(f"Erro ao configurar hotkeys: {e}")
             
     def on_key_press(self, key) -> None:
         """Callback para teclas pressionadas"""
         try:
+            # Hotkeys globais sempre funcionam, mesmo durante gravação
             if key == keyboard.Key.f9:
                 self.update_queue.put(('hotkey', 'record'))
+                return  # Não processa mais nada
             elif key == keyboard.Key.f10:
                 self.update_queue.put(('hotkey', 'play'))
+                return  # Não processa mais nada
             elif key == keyboard.Key.esc:
                 self.update_queue.put(('hotkey', 'stop'))
+                return  # Não processa mais nada
         except AttributeError:
             pass  # Teclas especiais podem não ter nome
             
@@ -788,24 +818,37 @@ class MouseRecorder:
         """Para todas as operações (gravação e reprodução)"""
         stopped_something = False
         
+        # Para gravação se estiver ativa
         if self.is_recording:
-            self.stop_recording()
-            stopped_something = True
-            
-        if self.is_playing and self.playback_session:
-            self.playback_session.stop()
-            self.is_playing = False
-            stopped_something = True
-            self.log_message("⏹️ Reprodução interrompida")
-            
-        if stopped_something:
-            # Reset de estados
+            try:
+                self.stop_recording()
+                stopped_something = True
+                self.log_message("⏹️ Gravação interrompida via ESC")
+            except Exception as e:
+                self.log_message(f"Erro ao parar gravação: {e}")
+        
+        # Para reprodução se estiver ativa
+        if self.is_playing:
+            try:
+                if self.playback_session:
+                    self.playback_session.stop()
+                self.is_playing = False
+                stopped_something = True
+                self.log_message("⏹️ Reprodução interrompida via ESC")
+            except Exception as e:
+                self.log_message(f"Erro ao parar reprodução: {e}")
+        
+        # Force o reset dos estados
+        try:
             self.progress_var.set(0)
             self.timer_var.set("00:00")
             self.status_var.set("Pronto")
             self.update_ui_state()
-        else:
-            self.log_message("ℹ️ Nenhuma operação em andamento para parar")
+        except Exception as e:
+            self.log_message(f"Erro ao resetar interface: {e}")
+            
+        if not stopped_something:
+            self.log_message("ℹ️ ESC pressionado - Nenhuma operação em andamento")
             
     def update_progress(self, current_rep: int, total_rep: int, progress: float) -> None:
         """Atualiza barra de progresso e timer"""
@@ -1074,9 +1117,18 @@ class MouseRecorder:
             # Para todas as operações
             self.stop_all()
             
-            # Para listeners
+            # Para listeners de hotkeys
+            if hasattr(self, 'hotkey_listener'):
+                try:
+                    self.hotkey_listener.stop()
+                except:
+                    pass
+                    
             if hasattr(self, 'keyboard_listener'):
-                self.keyboard_listener.stop()
+                try:
+                    self.keyboard_listener.stop()
+                except:
+                    pass
                 
             # Salva configurações
             self.settings.save_settings()
