@@ -976,7 +976,11 @@ class MouseRecorder:
                 self.current_recording_data = data
                 self.update_recording_info()
                 
+                # CORREÇÃO: Atualiza estado da interface após carregar
+                self.update_ui_state()
+                
                 self.log_message(f"📁 Gravação carregada: {os.path.basename(filename)}")
+                self.log_message(f"✅ Botão reproduzir habilitado - {len(data.get('events', []))} eventos disponíveis")
                 messagebox.showinfo("Sucesso", "Gravação carregada com sucesso!")
                 
         except Exception as e:
@@ -984,24 +988,50 @@ class MouseRecorder:
             messagebox.showerror("Erro", f"Erro ao carregar gravação:\n{e}")
             
     def validate_recording_data(self, data: Dict[str, Any]) -> bool:
-        """Valida estrutura dos dados de gravação"""
+        """Valida estrutura dos dados de gravação com logging detalhado"""
         try:
+            # Verifica se é um dicionário
+            if not isinstance(data, dict):
+                self.log_message("❌ Validação falhou: dados não são um dicionário")
+                return False
+            
+            # Verifica chaves obrigatórias
             required_keys = ["events", "duration"]
-            if not all(key in data for key in required_keys):
+            missing_keys = [key for key in required_keys if key not in data]
+            if missing_keys:
+                self.log_message(f"❌ Validação falhou: chaves ausentes: {missing_keys}")
                 return False
                 
             events = data["events"]
             if not isinstance(events, list):
+                self.log_message("❌ Validação falhou: 'events' não é uma lista")
                 return False
-                
-            # Valida alguns eventos
-            for i, event in enumerate(events[:10]):  # Valida primeiros 10
-                if not isinstance(event, dict) or "type" not in event or "timestamp" not in event:
+            
+            # Verifica se tem pelo menos um evento
+            if len(events) == 0:
+                self.log_message("⚠️ Aviso: gravação vazia (sem eventos)")
+                return True  # Permite gravações vazias
+            
+            # Valida alguns eventos (máximo 10 para não demorar)
+            events_to_check = min(10, len(events))
+            for i, event in enumerate(events[:events_to_check]):
+                if not isinstance(event, dict):
+                    self.log_message(f"❌ Validação falhou: evento {i} não é um dicionário")
                     return False
                     
+                if "type" not in event:
+                    self.log_message(f"❌ Validação falhou: evento {i} sem 'type'")
+                    return False
+                    
+                if "timestamp" not in event:
+                    self.log_message(f"❌ Validação falhou: evento {i} sem 'timestamp'")
+                    return False
+                    
+            self.log_message(f"✅ Validação passou: {len(events)} eventos, {events_to_check} verificados")
             return True
             
-        except:
+        except Exception as e:
+            self.log_message(f"❌ Erro durante validação: {e}")
             return False
             
     def update_recording_info(self) -> None:
