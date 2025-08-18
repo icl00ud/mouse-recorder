@@ -15,7 +15,39 @@ from pynput.keyboard import Key, Listener as KeyboardListener
 import datetime
 import os
 import sys
-import winsound
+try:
+    import winsound  # only on Windows
+    _HAS_WINSOUND = True
+except Exception:
+    _HAS_WINSOUND = False
+
+def play_notification_sound(root=None):
+    """
+    Cross-platform notification sound.
+    - Windows: winsound.MessageBeep
+    - macOS: use 'afplay' with a system sound
+    - Linux/others: Tk bell if available, else terminal bell
+    """
+    import sys, os
+    try:
+        if _HAS_WINSOUND:
+            winsound.MessageBeep(getattr(winsound, "MB_OK", -1))
+            return
+        if sys.platform == "darwin":
+            os.system("afplay /System/Library/Sounds/Ping.aiff >/dev/null 2>&1 &")
+            return
+        if root is not None:
+            try:
+                root.bell()
+                return
+            except Exception:
+                pass
+        # Fallback: terminal bell
+        print("\a", end="", flush=True)
+    except Exception:
+        # Silently ignore audio errors
+        pass
+
 from typing import List, Dict, Any, Optional
 import queue
 
@@ -892,7 +924,7 @@ class MouseRecorder:
         elif final_action == "Tocar som":
             if self.settings.get("sound_notification", True):
                 try:
-                    winsound.MessageBeep(winsound.MB_OK)
+                    play_notification_sound(self.root)
                     self.log_message("🔔 Som de notificação tocado")
                 except:
                     self.log_message("❌ Erro ao tocar som de notificação")
