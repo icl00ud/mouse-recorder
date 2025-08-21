@@ -59,11 +59,75 @@ jobs:
         python create_icon.py
         pyinstaller --onefile --windowed --name="MouseRecorder" --add-data "advanced_settings.py:." --add-data "utils.py:." --hidden-import=pynput --hidden-import=tkinter mouse_recorder.py
         
+    - name: Create DMG package
+      run: |
+        # Criar estrutura do app bundle
+        mkdir -p "MouseRecorder.app/Contents/MacOS"
+        mkdir -p "MouseRecorder.app/Contents/Resources"
+        
+        # Mover o executável para dentro do app bundle
+        mv dist/MouseRecorder "MouseRecorder.app/Contents/MacOS/"
+        
+        # Criar Info.plist
+        cat > "MouseRecorder.app/Contents/Info.plist" << EOF
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+            <key>CFBundleExecutable</key>
+            <string>MouseRecorder</string>
+            <key>CFBundleIdentifier</key>
+            <string>com.icl00ud.mouserecorder</string>
+            <key>CFBundleName</key>
+            <string>MouseRecorder</string>
+            <key>CFBundleDisplayName</key>
+            <string>Mouse Recorder</string>
+            <key>CFBundleVersion</key>
+            <string>1.0</string>
+            <key>CFBundleShortVersionString</key>
+            <string>1.0</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+            <key>LSMinimumSystemVersion</key>
+            <string>10.13</string>
+            <key>NSHighResolutionCapable</key>
+            <true/>
+        </dict>
+        </plist>
+        EOF
+        
+        # Criar um DMG temporário
+        hdiutil create -size 100m -fs HFS+ -volname "MouseRecorder" temp.dmg
+        
+        # Montar o DMG
+        hdiutil attach temp.dmg -mountpoint /Volumes/MouseRecorder
+        
+        # Copiar o app para o DMG
+        cp -R MouseRecorder.app /Volumes/MouseRecorder/
+        
+        # Criar link para Applications
+        ln -s /Applications /Volumes/MouseRecorder/Applications
+        
+        # Desmontar o DMG
+        hdiutil detach /Volumes/MouseRecorder
+        
+        # Converter para DMG final comprimido
+        hdiutil convert temp.dmg -format UDZO -o MouseRecorder.dmg
+        
+        # Limpar arquivos temporários
+        rm temp.dmg
+        
     - name: Upload macOS executable
       uses: actions/upload-artifact@v4
       with:
         name: MouseRecorder-macOS
         path: dist/MouseRecorder
+        
+    - name: Upload macOS DMG
+      uses: actions/upload-artifact@v4
+      with:
+        name: MouseRecorder-macOS-DMG
+        path: MouseRecorder.dmg
         
   release:
     needs: [build-windows, build-macos]
@@ -82,12 +146,19 @@ jobs:
         name: MouseRecorder-macOS
         path: ./macos/
         
+    - name: Download macOS DMG
+      uses: actions/download-artifact@v4
+      with:
+        name: MouseRecorder-macOS-DMG
+        path: ./macos-dmg/
+        
     - name: Create Release
       uses: softprops/action-gh-release@v1
       with:
         files: |
           ./windows/MouseRecorder.exe
           ./macos/MouseRecorder
+          ./macos-dmg/MouseRecorder.dmg
         generate_release_notes: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
