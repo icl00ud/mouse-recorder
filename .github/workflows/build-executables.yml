@@ -65,8 +65,8 @@ jobs:
         mkdir -p "MouseRecorder.app/Contents/MacOS"
         mkdir -p "MouseRecorder.app/Contents/Resources"
         
-        # Mover o executável para dentro do app bundle
-        mv dist/MouseRecorder "MouseRecorder.app/Contents/MacOS/"
+        # Copiar o executável para dentro do app bundle (manter o original)
+        cp dist/MouseRecorder "MouseRecorder.app/Contents/MacOS/"
         
         # Criar Info.plist
         cat > "MouseRecorder.app/Contents/Info.plist" << EOF
